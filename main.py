@@ -16,10 +16,14 @@ import os
 import sys
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ─────────────────────────────────────────────
 #  Secure Logging Setup
 # ─────────────────────────────────────────────
+
 
 def setup_logging() -> None:
     """
@@ -45,7 +49,7 @@ def setup_logging() -> None:
     handler = RotatingFileHandler(
         log_file,
         maxBytes=5 * 1024 * 1024,  # 5 MB per file
-        backupCount=3,              # Keep last 3 log files
+        backupCount=3,  # Keep last 3 log files
         encoding="utf-8",
     )
     formatter = logging.Formatter(
@@ -69,6 +73,7 @@ def setup_logging() -> None:
 #  Directory Initialization
 # ─────────────────────────────────────────────
 
+
 def ensure_directories() -> None:
     """
     Create required application directories.
@@ -78,7 +83,11 @@ def ensure_directories() -> None:
     - received_files/ — incoming file destination (mode 0o755)
     - logs/ — log files (mode 0o700 on POSIX)
     """
-    for directory, mode in [("keys", 0o700), ("received_files", 0o755), ("logs", 0o700)]:
+    for directory, mode in [
+        ("keys", 0o700),
+        ("received_files", 0o755),
+        ("logs", 0o700),
+    ]:
         path = Path(directory)
         path.mkdir(exist_ok=True)
         try:
@@ -90,6 +99,7 @@ def ensure_directories() -> None:
 # ─────────────────────────────────────────────
 #  Entry Point
 # ─────────────────────────────────────────────
+
 
 def main() -> None:
     """
@@ -111,17 +121,17 @@ def main() -> None:
     try:
         from gui.login import run_login_flow
         from gui.app import I2IApp
-        
+
         while True:
             username, role = run_login_flow()
             if not username or not role:
                 logger.info("Login cancelled. Exiting.")
                 sys.exit(0)
-                
+
             app = I2IApp(username, role)
             app.run()
-            
-            if getattr(app, 'logout_requested', False):
+
+            if getattr(app, "logout_requested", False):
                 logger.info("User logged out. Restarting login flow.")
                 continue
             else:
