@@ -1,0 +1,46 @@
+networks:
+  i2i-mesh:
+    driver: bridge
+
+services:
+  peer-a:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID}
+        PGID: ${PGID}
+    container_name: i2i-peer-a
+    env_file: .env
+    networks:
+      - i2i-mesh
+    environment:
+      - I2I_BIND_ADDR=0.0.0.0
+      - I2I_LISTEN_PORT=7777
+    volumes:
+      - ./data/peer-a_keys:/app/keys
+      - ./data/peer-a_files:/app/received_files
+    ports:
+      - "127.0.0.1:8777:8080"
+    restart: unless-stopped
+
+  peer-b:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID}
+        PGID: ${PGID}
+    container_name: i2i-peer-b
+    env_file: .env
+    networks:
+      - i2i-mesh
+    environment:
+      - I2I_BIND_ADDR=0.0.0.0
+      - I2I_LISTEN_PORT=7777
+    volumes:
+      - ./data/peer-b_keys:/app/keys
+      - ./data/peer-b_files:/app/received_files
+    ports:
+      - "127.0.0.1:8778:8080"
+    restart: unless-stopped

@@ -20,6 +20,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+ADMIN_CODE = os.environ.get("ADMIN_CODE")
+
+if not ADMIN_CODE:
+    logging.error("ADMIN_CODE not found in .env or sys env")
+
 # ─────────────────────────────────────────────
 #  Secure Logging Setup
 # ─────────────────────────────────────────────
@@ -37,11 +42,11 @@ def setup_logging() -> None:
     Output: None. Configures the root logger.
     """
     logs_dir = Path("logs")
-    logs_dir.mkdir(exist_ok=True)
-    try:
-        os.chmod(logs_dir, 0o700)
-    except (AttributeError, NotImplementedError):
-        pass  # Windows — acceptable
+    # logs_dir.mkdir(exist_ok=True)
+    # try:
+    # os.chmod(logs_dir, 0o700)
+    # except (AttributeError, NotImplementedError):
+    # pass  # Windows — acceptable
 
     from logging.handlers import RotatingFileHandler
 
@@ -89,11 +94,11 @@ def ensure_directories() -> None:
         ("logs", 0o700),
     ]:
         path = Path(directory)
-        path.mkdir(exist_ok=True)
-        try:
-            os.chmod(path, mode)
-        except (AttributeError, NotImplementedError):
-            pass
+        # path.mkdir(exist_ok=True)
+        # try:
+        #     os.chmod(path, mode)
+        # except (AttributeError, NotImplementedError):
+        #     pass
 
 
 # ─────────────────────────────────────────────

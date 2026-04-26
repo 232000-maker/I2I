@@ -1,7 +1,11 @@
-.venv/
-__pycache__/
-*.pyc
-.env
+security_documentation.docx
 keys/
 logs/
 received_files/
+data/
+__pycache__/
+.env
+.pytest_cache/
+*.pyc
+*.pyo
+.venv/

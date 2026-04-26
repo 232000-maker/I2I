@@ -1,256 +1,114 @@
-# I2I — Secure Peer-to-Peer Messenger
+# I2I Secure P2P Messenger
 
-> **Decentralized, end-to-end encrypted messaging and file sharing over I2P**  
-> Built with Python · PyNaCl · X25519 · XSalsa20-Poly1305
+**Group:** Syed Mueez (23I-2000), Huzaifa Khan (23I-6123), Muhammad Abdullah (23I-2064)  
+**Course:** Secure Software Development (SSD) - Assignment 3
 
-**Group:** Syed Mueez (23I-2000) · Huzaifa Khan (23I-6123) · Muhammad Abdullah (23I-2064)  
-**Course:** Secure Software Development (SSD) — Assignment 3
+## Description
 
----
-
-## Table of Contents
-1. [Project Description](#project-description)
-2. [Security Features](#security-features-implemented)
-3. [Folder Structure](#folder-structure)
-4. [Dependencies](#dependencies)
-5. [Environment Variables](#environment-variables)
-6. [Setup Instructions](#setup-instructions)
-7. [How to Run](#how-to-run)
-8. [How to Run Tests](#how-to-run-tests)
-9. [Protocol Overview](#protocol-overview)
-
----
-
-## Project Description
-
-**I2I** (Identity-to-Identity) is a decentralized peer-to-peer messaging and file-sharing application. It operates over the I2P (Invisible Internet Project) anonymity network, routing all communications through layered tunnels to hide IP addresses and metadata.
-
-The application eliminates reliance on central servers — peers communicate directly using cryptographic identities (X25519 public keys). This implementation includes a simulated I2P SAM layer using TCP on localhost, allowing standalone demonstration without requiring a real I2P router daemon.
-
-### Core Features:
-- **Real-time encrypted messaging** between peers
-- **Secure file transfer** with chunking (4 KB) and SHA-256 integrity verification
-- **Identity verification** via Safety Numbers (MITM prevention)
-- **Dark-themed Tkinter GUI** with peer management
-- **Fully decentralized** — no server required
-
----
+I2I (Identity-to-Identity) is a decentralized, peer-to-peer messaging and file-sharing application built with a focus on cryptographic security and local privacy. The system eliminates reliance on central servers by utilizing a simulated I2P network layer where peer addresses are derived deterministically from their public keys. The application provides an end-to-end encrypted (E2EE) tunnel for communication, enforcing role-based access control (RBAC) to manage resource usage and administrative privileges.
 
 ## Security Features Implemented
 
-| Feature | Implementation |
-|---|---|
-| **End-to-End Encryption** | XSalsa20-Poly1305 (PyNaCl) with X25519 ECDH key exchange |
-| **Authentication & RBAC** | Local login with `bcrypt` password hashing and Role-Based Access Control |
-| **Brute Force Protection** | Account Lockout policy triggers after 3 failed login attempts (5 min) |
-| **Privilege Escalation Protection** | Admin role assignment requires a Secret Passcode (configured via `.env`) |
-| **Forward Secrecy** | Each session uses a fresh ECDH-derived shared secret |
-| **Replay Attack Prevention** | Per-session nonce set tracks all received nonces |
-| **MITM Prevention** | Safety Numbers (SHA-256 fingerprint of both public keys) |
-| **Rate Limiting** | Token bucket (20 burst, 5/sec) per peer — DoS protection |
-| **Input Validation Layer** | Centralized formal validation in `src/validators.py` |
-| **Filename Sanitization** | `os.path.basename()` + regex + reserved name rejection |
-| **File Integrity Verification** | SHA-256 hash verified after full reassembly |
-| **Secure Logging** | Internal logs only (never to stdout); no sensitive data logged |
-| **Key Security** | Private key stored with `chmod 600` on POSIX; never transmitted |
-| **Timestamp Validation** | Rejects messages older than 5 min or >1 min in future |
-| **Message Size Limits** | 4 KB chat, 50 MB files |
-| **Path Traversal Prevention** | Received filenames written only to `received_files/` |
-| **No Hardcoded Secrets** | All configuration via environment variables / `.env` |
-| **Generic Error Responses** | Users see generic errors; details only in secure log file |
+The application incorporates several secure coding principles and architectural controls:
 
----
-
-## Folder Structure
-
-```
-i2i/
-├── src/                          # Core application modules
-│   ├── __init__.py
-│   ├── crypto_utils.py           # X25519, XSalsa20-Poly1305, safety numbers
-│   ├── i2p_manager.py            # I2P SAM API simulation (TCP listener/connector)
-│   ├── peer_connection.py        # P2P session lifecycle & handshake
-│   ├── message_handler.py        # Encrypted message send/receive
-│   ├── file_transfer.py          # Chunked secure file transfer
-│   └── security_utils.py        # Input validation, rate limiting, sanitization
-├── gui/
-│   ├── __init__.py
-│   └── app.py                   # Tkinter dark-theme GUI
-├── tests/
-│   ├── __init__.py
-│   ├── test_crypto.py            # Crypto unit tests
-│   ├── test_security.py          # Security/validation unit tests
-│   └── test_file_transfer.py    # File transfer unit tests
-├── docs/
-│   └── security_documentation.md # Detailed security features document
-├── keys/                         # Auto-created: key storage (gitignored)
-├── logs/                         # Auto-created: rotating log files (gitignored)
-├── received_files/               # Auto-created: received file destination (gitignored)
-├── .env.example                  # Environment variable template
-├── .gitignore
-├── requirements.txt
-├── main.py                       # Application entry point
-└── README.md
-```
-
----
+- End-to-End Encryption (E2EE): All data is protected using XSalsa20-Poly1305 authenticated encryption via the PyNaCl (libsodium) library.
+- Perfect Forward Secrecy (PFS): A two-phase handshake uses static identity keys to authenticate the exchange of ephemeral X25519 keys for every session.
+- Role-Based Access Control (RBAC): The system differentiates between USER and ADMIN roles, enforcing file size limits (10 MB for users, 50 MB for admins) and restricting administrative commands like network broadcasts and peer kicking.
+- Authentication Security: Local accounts are secured with bcrypt password hashing. A memory-resident lockout policy triggers after three failed attempts to prevent brute-force attacks.
+- Man-In-The-Middle (MITM) Protection: Users can perform out-of-band verification using a 30-digit Safety Number derived from the shared cryptographic context.
+- Input Validation: All external inputs, including chat messages, public keys, and filenames, are validated against strict length and format constraints.
+- Path Traversal Prevention: Filenames are sanitized by stripping directory components and null bytes, and by rejecting reserved operating system filenames.
+- Rate Limiting: A Token Bucket algorithm prevents message flooding by limiting the rate at which a peer can send data.
+- Secure Logging: Application logs exclude sensitive data such as plaintext messages, private keys, or passwords. Peer identifiers are anonymized.
+- Container Security: The Docker implementation uses a non-root user, isolated bridge networking, and a virtualized framebuffer (Xvfb) to minimize the host attack surface.
 
 ## Dependencies
 
-All dependencies are specified in `requirements.txt`:
+The following Python libraries are required for the application:
 
-```
-PyNaCl>=1.5.0          # Cryptographic operations (X25519 + XSalsa20-Poly1305)
-bcrypt>=4.0.1          # Secure password hashing for authentication
-pytest>=7.4.0          # Unit testing framework
-pytest-cov>=4.1.0      # Test coverage reporting
-python-dotenv>=1.0.0   # Environment variable loading
-```
-
-> **Python version:** 3.11 or higher required (uses `match`, walrus operator, `Path.unlink(missing_ok)`)
-
----
+- PyNaCl: Provides the cryptographic primitives for X25519 and XSalsa20-Poly1305.
+- bcrypt: Handles secure, salted password hashing.
+- python-dotenv: Loads configuration settings from environment files.
+- pytest: Framework used for the unit test suite.
+- pytest-cov: Provides coverage reporting for the source code.
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and adjust if needed:
+The application is configured via a .env file. An example file (.env.example) is provided in the root directory.
 
-```bash
-cp .env.example .env
-```
-
-| Variable | Default | Description |
-|---|---|---|
-| `I2I_LISTEN_PORT` | `7777` | Local port to listen for incoming connections |
-| `I2I_LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `I2I_MAX_FILE_MB` | `50` | Maximum file size in MB |
-| `I2I_MAX_MSG_KB` | `4` | Maximum message size in KB |
-| `I2I_ADMIN_SECRET` | `SSD-ADMIN-CODE` | Passcode required to register as ADMIN |
-
-> **Security note:** Never commit your `.env` file. The `.gitignore` excludes it automatically.
-
----
+- I2I_LISTEN_PORT: The TCP port the application listens on (e.g., 7777).
+- I2I_BIND_ADDR: The network interface to bind to (use 0.0.0.0 for Docker, 127.0.0.1 for local).
+- I2I_ADMIN_SECRET: The secret code required to register as an ADMIN.
+- I2I_LOG_LEVEL: The verbosity of the application logs (e.g., INFO, WARNING).
+- PUID/PGID: User and Group IDs used for filesystem permissions in Docker.
 
 ## Setup Instructions
 
-### 1. Prerequisites
-- Python 3.11+ installed
-- pip package manager
+### Docker Environment Setup
 
-### 2. Clone / Extract Project
-```bash
-cd i2i/
-```
+1.  **Initialize Configuration:**
 
-### 3. Create Virtual Environment (Recommended)
-```bash
-python -m venv .venv
+    ```bash
+    cp .env.example .env
+    ```
 
-# Windows
-.venv\Scripts\activate
+2.  **Configure Environment Variables:**
+    Open the `.env` file and ensure the following:
+    - Set `I2I_BIND_ADDR=0.0.0.0` (Required for Docker networking).
+    - Set `I2I_ADMIN_SECRET` to a code of your choice (e.g., `MySecret123`). This is required to register an Admin account.
+    - Set `ADMIN_CODE` to the same value as `I2I_ADMIN_SECRET`.
 
-# Linux / macOS
-source .venv/bin/activate
-```
+3.  **Launch the Network:**
+    ```bash
+    docker-compose up --build -d
+    ```
 
-### 4. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+## How to Run Project
 
-### 5. Configure Environment
-```bash
-copy .env.example .env   # Windows
-# Or: cp .env.example .env  (Linux/macOS)
-```
+### 1. Access the Graphical Interfaces
 
----
+Open two separate browser tabs to access the peer nodes:
 
-## How to Run
+- **Peer A:** [http://localhost:8777/vnc.html](http://localhost:8777/vnc.html)
+- **Peer B:** [http://localhost:8778/vnc.html](http://localhost:8778/vnc.html)
 
-### Running a Single Instance
-```bash
-python main.py
-```
+_Click the "Connect" button in the browser to view the application._
 
-On first launch:
-- The **Login/Registration Screen** will appear.
-- You can register a new username and password (passwords are `bcrypt` hashed).
-- A new X25519 key pair is generated and saved to `keys/`.
-- The GUI displays your `.b32.i2p` address and public key.
+### 2. Authentication Flow
 
-### Connecting Two Peers (Local Testing)
-Open **two terminals**:
+- **Registering as ADMIN:** Use the username `admin`. When the application prompts for a secret code, enter the `I2I_ADMIN_SECRET` defined in your `.env` file.
+- **Registering as USER:** Use any other username and password.
 
-**Terminal 1 (Peer A — listens on port 7777):**
-```bash
-python main.py
-```
+### 3. Establishing a Peer-to-Peer Connection
 
-**Terminal 2 (Peer B — listens on port 7778):**
-```bash
-# Edit .env to set I2I_LISTEN_PORT=7778 or set directly:
-python -c "
-import os; os.environ['I2I_LISTEN_PORT'] = '7778'
-from gui.app import I2IApp
-I2IApp().run()
-"
-```
+To connect Peer B to Peer A:
 
-Or run a second instance by temporarily changing the port in `main.py` / i2p_manager:
+1.  **On Peer A:** Register/Login and copy the **Public Key (Hex)** displayed in the identity panel.
+2.  **On Peer B:** Register/Login. In the connection panel, enter the following:
+    - **Peer Public Key:** (Paste the key from Peer A)
+    - **Host/IP:** `peer-a`
+    - **Port:** `7777`
+3.  Click **Connect**.
 
-**Simplified two-instance test:**
-1. In Peer B's GUI: paste Peer A's **public key hex** (shown in the GUI)
-2. Set port to `7777`
-3. Click **Connect**
-4. Verify the **Safety Number** matches on both sides
-5. Start chatting!
+To connect Peer A back to Peer B:
 
----
+1.  **On Peer B:** Copy the **Public Key (Hex)**.
+2.  **On Peer A:** Enter `peer-b` in the **Host/IP** field, `7777` in the **Port** field, and paste the key.
+3.  Click **Connect**.
 
-## How to Run Tests
+## Testing and Verification
 
-```bash
-# Run all tests
-pytest tests/ -v
+### Automated Security Audit
 
-# Run with coverage report
-pytest tests/ -v --cov=src --cov-report=term-missing
+This script verifies authentication security, RBAC limits, path traversal prevention, and logging integrity.
+docker exec -it i2i-peer-a python security_test.py
 
-# Run specific test file
-pytest tests/test_crypto.py -v
-pytest tests/test_security.py -v
-pytest tests/test_file_transfer.py -v
-```
+### Unit Test Suite
 
-Expected output: All tests pass. The test suite covers:
-- 30+ crypto unit tests (key gen, ECDH, encrypt/decrypt, safety numbers)
-- 25+ security tests (validation, sanitization, rate limiting)
-- 15+ file transfer tests (chunking, integrity, size limits)
+To run the full suite of 80+ tests covering cryptography, file transfers, and connection logic:
+docker exec -it i2i-peer-a python -m pytest tests/ -v
 
----
+### Shutdown
 
-## Protocol Overview
-
-```
-HANDSHAKE:
-  Alice ──[pub_key_A]──► Bob
-  Alice ◄──[pub_key_B]── Bob
-  Both compute: shared_secret = ECDH(own_priv, peer_pub)
-  Both display: safety_number = SHA256(sort(pub_A, pub_B))
-
-MESSAGE SEND:
-  nonce = random_bytes(24)
-  ciphertext = XSalsa20Poly1305(shared_secret, nonce, plaintext)
-  envelope = JSON({type, sender, data: hex(ciphertext), nonce: hex(nonce), timestamp})
-  frame = [4-byte-length][envelope_bytes]
-  sock.sendall(frame)
-
-FILE TRANSFER:
-  1. Sender → FILE_META: {filename, total_chunks, sha256_hash, size}
-  2. Receiver → ACK "ready"
-  3. For each chunk:
-     Sender → FILE_CHUNK: {chunk_index, total_chunks, data: hex(chunk)}
-     Receiver → ACK "chunk_N"
-  4. Receiver verifies SHA-256 of reassembled file
-```
+To stop the Docker containers and clean up the network:
+docker-compose down
